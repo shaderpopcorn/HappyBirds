@@ -15,7 +15,7 @@ public class VRHand: MonoBehaviour
     private Animator anim;
 
     // Enum to determine whether this is the left or right hand
-    public Handness handess;
+    public Handness handness;
 
     // Reference to the empty gameObject represting where held objects
     // will be anchored to
@@ -26,6 +26,11 @@ public class VRHand: MonoBehaviour
 
     // A boolean to keep track of if we are currently holding any object
     public bool isHolding = false; // (only public so we can see it in play mode for debugging)
+
+    // visual reference for the teleport position 
+    public Transform teleportVisualRef;
+
+    public Transform vrRig;
 
     // Start is called before the first frame update
     void Start()
@@ -38,44 +43,50 @@ public class VRHand: MonoBehaviour
     void Update()
     {
         // IF the grip button of the proper hand is pressed run the close animation
-        if( Input.GetButtonDown( handess + "Grip" ) )
+        if( Input.GetButtonDown( handness + "Grip" ) )
         {
             anim.SetBool( "GripPressed", true );
+
+            // Pick up object
+            // Parent to holdPosition transform ref, zero out its transform and turn of gravity
+            hoveredObject.SetParent( holdPosition );
+            hoveredObject.GetComponent<Rigidbody>().useGravity = false;
+            hoveredObject.localPosition = Vector3.zero;
+            hoveredObject.localRotation = Quaternion.identity;
+
+            isHolding = true;
         }
 
         // IF the grip button of the proper hand is released run the open animation
-        if( Input.GetButtonUp( handess + "Grip" ) )
+        if( Input.GetButtonUp( handness + "Grip" ) )
         {
             anim.SetBool( "GripPressed", false );
-        }
 
-        // If the trigger of the correct hand is pressed
-        if( Input.GetButtonDown( handess + "Trigger" ) )
-        {
-            // Pick up object
-            if( hoveredObject != null )
-            {
-                // Parent to holdPosition transform ref, zero out its transform and turn of gravity
-                hoveredObject.SetParent( holdPosition );
-                hoveredObject.GetComponent<Rigidbody>().useGravity = false;
-                hoveredObject.localPosition = Vector3.zero;
-                hoveredObject.localRotation = Quaternion.identity;
-
-                isHolding = true;
-            }
-        }
-
-        // If the trigger is released
-        if( Input.GetButtonUp( handess + "Trigger" ) )
-        {
             // Drop an object here (if holding one)
-            if( isHolding == true )
-            {
-                // Set the parent of the held object to empty and turn gravity back on
-                hoveredObject.SetParent( null );
-                hoveredObject.GetComponent<Rigidbody>().useGravity = true;
+            // Set the parent of the held object to empty and turn gravity back on
+            hoveredObject.SetParent( null );
+            hoveredObject.GetComponent<Rigidbody>().useGravity = true;
 
-                isHolding = false;
+            isHolding = false;
+        }
+
+        // Raycasting from the right hand
+        if (handness == Handness.Right)
+        {
+            Ray ray = new Ray( transform.position, transform.forward );
+            RaycastHit hitInfo = new RaycastHit();
+            if (Physics.Raycast(ray, out hitInfo)) // if youo use the 'out' keyword, yoou must change the variable
+            { 
+                teleportVisualRef.gameObject.SetActive( true );
+                teleportVisualRef.position = hitInfo.point;
+                if (Input.GetButtonDown( handness + "Trigger" ))
+                {
+                    vrRig.position = new Vector3( hitInfo.point.x, vrRig.position.y, hitInfo.point.z );
+                }
+            }
+            else
+            {
+                teleportVisualRef.gameObject.SetActive( false );
             }
         }
     }
