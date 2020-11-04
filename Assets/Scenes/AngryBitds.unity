@@ -544,6 +544,11 @@ MonoBehaviour:
   hoveredObject: {fileID: 0}
   isHolding: 0
   teleportVisualRef: {fileID: 1130261989}
+  vrRig: {fileID: 0}
+  smoothnessValue: 0.2
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!135 &401751103
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1547,6 +1552,11 @@ MonoBehaviour:
   hoveredObject: {fileID: 0}
   isHolding: 0
   teleportVisualRef: {fileID: 0}
+  vrRig: {fileID: 0}
+  smoothnessValue: 0.2
+  layerMask:
+    serializedVersion: 2
+    m_Bits: 0
 --- !u!135 &1620617735
 SphereCollider:
   m_ObjectHideFlags: 0
@@ -1642,6 +1652,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_TagString
       value: Interactable
+      objectReference: {fileID: 0}
+    - target: {fileID: 1355297595180975168, guid: 65c3c40f6dee70f43bd77dd21235a321,
+        type: 3}
+      propertyPath: m_Layer
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 6096531468286568531, guid: 65c3c40f6dee70f43bd77dd21235a321,
         type: 3}
