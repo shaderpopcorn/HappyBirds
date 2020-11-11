@@ -1,6 +1,8 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.XR;
 
 public enum Handness
 {
@@ -11,38 +13,59 @@ public enum Handness
 
 public class VRHand: MonoBehaviour
 {
-    // Reference to animator component on the hand
-    private Animator anim;
-
+    [Header("Type")]
     // Enum to determine whether this is the left or right hand
     public Handness handness;
 
+    [Header("Pickup Control")]
+
+    [Space(50)]
+
+    [Header("Scene Refs")]
     // Reference to the empty gameObject represting where held objects
     // will be anchored to
     public Transform holdPosition;
+    private Remote remote = null;
+    public Transform vrRig;
 
+    [Header("Debug View")]
     // The object we are currently hovering over
     public Transform hoveredObject; // (only public so we can see it in play mode for debugging)
 
     // A boolean to keep track of if we are currently holding any object
     public bool isHolding = false; // (only public so we can see it in play mode for debugging)
 
+    public Transform heldObject;
+
+    [Header("Throw Control")]
+
+    // Reference to animator component on the hand
+    private Animator anim;
+
     // visual reference for the teleport position 
     public Transform teleportVisualRef;
 
-    public Transform vrRig;
 
     public float smoothnessValue = 0.2f;
 
     public LayerMask layerMask;
 
-    public Transform heldObject;
+    private Vector3 lastPosition;
+    public float throwForce = 20;
+
+    public Collider collisionCollider;
+
+    public RawImage fadeScreen;
+
 
     // Start is called before the first frame update
     void Start()
     {
         // Get the reference to the animator component of the hand
         anim = GetComponent<Animator>();
+
+        lastPosition = transform.position;
+        collisionCollider.enabled = false;
     }
 
     // Update is called once per frame
@@ -60,13 +83,15 @@ public class VRHand: MonoBehaviour
             }
             else
             {
-                Ray ray = new Ray(transform.position, transform.forward);
-                RaycastHit hitInfo = new RaycastHit();
-                if (Physics.Raycast(ray, out hitInfo, 100, layerMask))
-                {
-                   // Start coroutine
-                   StartCoroutine(SmoothMoveToHand(hitInfo.collider.transform));
-                }
+                //Ray ray = new Ray(transform.position, transform.forward);
+                //RaycastHit hitInfo = new RaycastHit();
+                //if (Physics.Raycast(ray, out hitInfo, 100, layerMask))
+                //{
+                //   // Start coroutine
+                //   StartCoroutine(SmoothMoveToHand(hitInfo.collider.transform));
+                //}
+
+                collisionCollider.enabled = true;
             }
         }
 
@@ -79,8 +104,41 @@ public class VRHand: MonoBehaviour
             // Set the parent of the held object to empty and turn gravity back on
             heldObject.SetParent( null );
             heldObject.GetComponent<Rigidbody>().useGravity = true;
+            collisionCollider.enabled = false;
+
+            XRNode nodeType;
+            if (handness == Handness.Right)
+            {
+                nodeType = XRNode.RightHand;
+            }
+            else
+            {
+                nodeType = XRNode.LeftHand;
+            }
+
+            List<XRNodeState> nodeStates = new List<XRNodeState>();
+            InputTracking.GetNodeStates(nodeStates);
+
+            for (int i = 0; i < nodeStates.Count; i++)
+            {
+                if(nodeStates[i].nodeType == nodeType)
+                {
+                    Vector3 velocity;
+                    if (nodeStates[i].TryGetVelocity(out velocity))
+                    {
+                        heldObject.GetComponent<Rigidbody>().velocity = velocity * throwForce;
+                    }
+                }
+            }
 
             isHolding = false;
+            heldObject = null;
+            remote = null;
+        }
+
+        if(Input.GetButtonDown("Fire") && remote != null)
+        {
+            remote.OnHitBigRedButton();
         }
 
         // Raycasting from the right hand
@@ -97,7 +155,8 @@ public class VRHand: MonoBehaviour
                 teleportVisualRef.position += vecToDesired;
                 if (Input.GetButtonDown( handness + "Trigger" ))
                 {
-                    vrRig.position = new Vector3( hitInfo.point.x, vrRig.position.y, hitInfo.point.z );
+                    Vector3 newPos = new Vector3( hitInfo.point.x, vrRig.position.y, hitInfo.point.z );
+                    StartCoroutine(MoveWithFade(newPos));
                 }
             }
             else
@@ -105,10 +164,14 @@ public class VRHand: MonoBehaviour
                 teleportVisualRef.gameObject.SetActive( false );
             }
         }
+
+        lastPosition = transform.position;
     }
 
     private void GrabObject(Transform objectToGrab)
     {
+        remote = objectToGrab.GetComponent<Remote>();
+
         heldObject = objectToGrab;
         heldObject.SetParent(holdPosition);
         heldObject.GetComponent<Rigidbody>().useGravity = false;
@@ -136,6 +199,8 @@ public class VRHand: MonoBehaviour
         }
     }
 
+    
+
     private IEnumerator SmoothMoveToHand(Transform objectToMove)
     {
         float currentTime = 0;
@@ -161,8 +226,36 @@ public class VRHand: MonoBehaviour
         return ((b - a) * t) + a;
     }
 
+    private IEnumerator MoveWithFade(Vector3 pos)
+    {
+        
+        fadeScreen.color = Color.clear;
+        float currentTime = 0;
+        while (currentTime < 1)
+        {
+            fadeScreen.color = Color.Lerp(Color.clear, Color.black, currentTime);
+            yield return null;
+            currentTime += Time.deltaTime;
+        }
+
+        vrRig.position = pos;
+
+        yield return new WaitForSeconds(0.4f);
+
+        currentTime = 0;
+        while (currentTime < 1)
+        {
+            fadeScreen.color = Color.Lerp(Color.black, Color.clear, currentTime);
+            yield return null;
+            currentTime += Time.deltaTime;
+        }
+        fadeScreen.color = Color.clear;
+    }
+
     public Vector3 LerpV(Vector3 a, Vector3 b, float t)
     {
         return new Vector3( Lerp(a.x, b.x, t), Lerp(a.y, b.y, t), Lerp(a.z, b.z, t) );
     }
+
+    
 }
